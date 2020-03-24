@@ -15,3 +15,5 @@ require (
 	golang.org/x/sys v0.0.0-20190712062909-fae7ac547cb7 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )
+
+replace github.com/keybase/go-keychain => github.com/quorumcontrol/go-keychain v0.0.0-20200324182052-9544b7eee399
