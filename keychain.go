@@ -41,6 +41,27 @@ func init() {
 	})
 }
 
+func (k *keychain) unlock() error {
+	pw, err := k.passwordFunc(fmt.Sprintf("Enter passphrase to unlock keychain %s", k.path))
+	if err != nil {
+		return err
+	}
+
+	if k.path != "" {
+		debugf("Unlocking keychain %v", k.path)
+		err = gokeychain.UnlockAtPath(k.path, pw)
+	} else {
+		debugf("Unlock default keychain")
+		err = gokeychain.UnlockDefault(pw)
+	}
+	if err != nil {
+		debugf("Unlock err: %v", err)
+		return err
+	}
+
+	return nil
+}
+
 func (k *keychain) Get(key string) (Item, error) {
 	query := gokeychain.NewItem()
 	query.SetSecClass(gokeychain.SecClassGenericPassword)
@@ -152,6 +173,8 @@ func (k *keychain) Set(item Item) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		kc = gokeychain.Keychain{}
 	}
 
 	kcItem := gokeychain.NewItem()
@@ -193,6 +216,16 @@ func (k *keychain) Set(item Item) error {
 	debugf("Adding service=%q, label=%q, account=%q, trusted=%v to osx keychain %q", k.service, item.Label, item.Key, isTrusted, k.path)
 
 	err := gokeychain.AddItem(kcItem)
+
+	if err == gokeychain.ErrorInteractionNotAllowed {
+		debugf("got interaction not allowed error; requesting unlock")
+		err = k.unlock()
+		if err != nil {
+			return err
+		}
+		debugf("Retrying adding service=%q, label=%q, account=%q, trusted=%v to osx keychain %q", k.service, item.Label, item.Key, isTrusted, k.path)
+		err = gokeychain.AddItem(kcItem)
+	}
 
 	if err == gokeychain.ErrorDuplicateItem {
 		debugf("Item already exists, updating")
